@@ -45,7 +45,7 @@ def mnist_noniid(dataset, num_users):
     return dict_users
 
 if __name__ == "__main__":
-    dataset_train = datasets.MNIST('/Users/austineyapp/Documents/REP/Year_4/FYP/data/mnist', train=True, download=True,
+    dataset_train = datasets.MNIST('/data/mnist', train=True, download=True,
                         transform=transforms.Compose([transforms.ToTensor(),
                         transforms.Normalize((0.1307,),
                                             (0.3081,))

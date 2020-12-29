@@ -9,7 +9,7 @@ def get_dataset(args):
     the keys are the user index and the values are the corresponding data
     for each of those users.
     """
-    data_dir = "/Users/austineyapp/Documents/REP/Year_4/FYP/data/mnist"
+    data_dir = "/data/mnist"
 
     apply_transform = transforms.Compose([
         transforms.ToTensor(),

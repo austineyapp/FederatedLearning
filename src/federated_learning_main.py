@@ -103,7 +103,7 @@ if __name__=="__main__":
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
 
     #Saving the objects train_loss and train_accuracy:
-    file_name = "/Users/austineyapp/Documents/REP/Year_4/FYP/runs/pickle/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl".\
+    file_name = "/runs/pickle/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl".\
     format(args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs)
 
     os.makedirs(os.path.dirname(file_name), exist_ok=True)
@@ -124,7 +124,7 @@ if __name__=="__main__":
     plt.plot(range(len(train_loss)), train_loss, color='r')
     plt.ylabel('Training loss')
     plt.xlabel('Communication Rounds')
-    plt.savefig('/Users/austineyapp/Documents/REP/Year_4/FYP/runs/plots/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
+    plt.savefig('/runs/plots/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
                 format(args.dataset, args.model, args.epochs, args.frac,
                        args.iid, args.local_ep, args.local_bs))
 
@@ -134,6 +134,6 @@ if __name__=="__main__":
     plt.plot(range(len(train_accuracy)), train_accuracy, color='k')
     plt.ylabel('Average Accuracy')
     plt.xlabel('Communication Rounds')
-    plt.savefig('/Users/austineyapp/Documents/REP/Year_4/FYP/runs/plots/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
+    plt.savefig('/runs/plots/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
                 format(args.dataset, args.model, args.epochs, args.frac,
                        args.iid, args.local_ep, args.local_bs))
