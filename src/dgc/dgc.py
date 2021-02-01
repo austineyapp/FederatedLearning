@@ -4,6 +4,24 @@ from torch import nn
 import torch.distributed as dist
 import numpy as np
 
+import numpy as np
+import pickle
+import sys
+
+class ConvertGrads:
+    def __init__(self):
+        pass
+
+    def gradient_to_str(self, gradient):
+        data_bytes = pickle.dumps(gradient)
+        data_str = data_bytes.decode('iso-8859-1')
+        return data_str
+
+    def str_to_gradient(self, data_str):
+        data_bytes = data_str.encode('iso-8859-1')
+        gradient = pickle.loads(data_bytes)
+        return gradient
+
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
         torch.nn.init.xavier_uniform_(m.weight.data)
@@ -30,6 +48,7 @@ class DGC(nn.Module):
         self.momentum = momentum
         self.compressed_size = None
         self.full_update_layers = full_update_layers
+        self.converter = ConvertGrads()
 
         self.percentage = percentage
 
@@ -122,6 +141,7 @@ class DGC(nn.Module):
         :return
         avg_grads : tensor, averaged over all nodes gradient tensor
         """
+        value = self.converter.str_to_gradient(value)
         idx = 0
         avg_grads = []
         g_list =[]
@@ -146,8 +166,8 @@ class DGC(nn.Module):
 
                 else:
                     dist.gather(tensor=layer.to('cpu'), dst=0, gather_list=[])
-
-        return avg_grads
+        avg_grads_str = self.converter.gradient_to_str(avg_grads)
+        return avg_grads_str
 
     def construct_grads(self, grads, indices, amounts):
         """
@@ -177,7 +197,17 @@ class DGC(nn.Module):
                 updated_grad = updated_grad.put_(idc, layer_grad)
                 new_grads.append(updated_grad)
                 conv_layer_idx += 1
-        return new_grads
+        if self.rank==0:
+            print("SIZE BEFORE")
+            size = 0
+            for i in new_grads:
+                size += sys.getsizeof(i.storage())
+            print(size)
+        new_grads_str = self.converter.gradient_to_str(new_grads)
+        if self.rank==0:
+            print("SIZE AFTER")
+            print(sys.getsizeof(new_grads_str))
+        return new_grads_str
 
     def transfer_gradients(self, grad_update_conv):
         """
@@ -187,6 +217,7 @@ class DGC(nn.Module):
         :return
         upd_grads : final gradient accessible at each node
         """
+        grad_update_conv = self.converter.str_to_gradient(grad_update_conv)
         upd_grads = []
 
         for idx in range(len(self.shapes)):
