@@ -34,7 +34,7 @@ class LocalUpdate(object):
         self.selected_clients = []
         self.ldr_train = DataLoader(DatasetSplit(dataset, idxs), batch_size=self.args.local_bs, shuffle=True)
 
-    def train(self, net, world_size, rank):
+    def train(self, net, world_size, rank, grc):
         net.train()
         # train and update
         optimizer = torch.optim.SGD(net.parameters(), lr=self.args.lr, momentum=self.args.momentum)
@@ -42,17 +42,23 @@ class LocalUpdate(object):
         batch_loss = 0
         for batch_idx, (images, labels) in enumerate(self.ldr_train):
             images, labels = Variable(images.to(self.args.device)), Variable(labels.to(self.args.device))
-            net.zero_grad()
             log_probs = net(images)
             loss = self.loss_func(log_probs, labels)
             batch_loss += loss
             loss.backward()
-            # dgc.gradient_update()
+            uncompressed = 0
+            compressed = 0
+            for index, (name, parameter) in enumerate(net.named_parameters()):
+                grad = parameter.grad.data
+                uncompressed += grad.element_size() * grad.nelement()
+                # grc.acc(grad)
+                new_tensor = grc.step(grad, name)
+                grad.copy_(new_tensor)
+            # if rank == 0:
+                # print(uncompressed)
+                # print(grc.size)
             optimizer.step()
-            # if self.args.verbose and rank == 0 and batch_idx % 10 == 0:
-            #     print('Local Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-            #         batch_idx, batch_idx * len(images), len(self.ldr_train.dataset),
-            #                 100. * batch_idx / len(self.ldr_train), loss.item()))
+            net.zero_grad()
         return batch_loss/len(self.ldr_train)
 
     def inference(self, net, dataset_test, idxs):
