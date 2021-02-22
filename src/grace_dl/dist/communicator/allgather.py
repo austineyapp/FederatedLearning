@@ -6,7 +6,6 @@ from grace_dl.dist import Communicator
 
 class Allgather(Communicator):
     def send_receive(self, tensors, name, ctx):
-        self.size = 0
         if self.compressor.tensors_size_are_same:
             tensors_gathered = []
             for tensor_compressed in tensors:
@@ -39,7 +38,6 @@ class Allgather(Communicator):
 
                 tensors_gathered.append(data_list)
 
-        # print("Compressed size: {:.1f}".format(self.size))
         decompressed_list = []
         for tensors_compressed in zip(*tensors_gathered):
             tensor_decompressed = self.compressor.decompress(tensors_compressed, ctx)

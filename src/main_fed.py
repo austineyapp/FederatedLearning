@@ -92,8 +92,17 @@ def run(rank, world_size, loss_train, acc_train, dataset_train, idxs_users, net_
         idx = dict_users[i[rank]]
 
         epoch_loss = torch.zeros(1)
+        optimizer = torch.optim.SGD(net_glob.parameters(), lr=args.lr, momentum=args.momentum)
+
         local = LocalUpdate(args=args, dataset=dataset_train, idxs=idx) #create LocalUpdate class
-        train_loss = local.train(net=net_glob, world_size=world_size, rank=rank, grc=grc) #train local
+        train_loss = local.train(net=net_glob) #train local
+        for index, (name, parameter) in enumerate(net_glob.named_parameters()):
+                grad = parameter.grad.data
+                grc.acc(grad)
+                new_tensor = grc.step(grad, name)
+                grad.copy_(new_tensor)
+        optimizer.step()
+        net_glob.zero_grad()
         epoch_loss += train_loss
         dist.reduce(epoch_loss, 0, dist.ReduceOp.SUM)
 

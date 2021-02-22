@@ -32,9 +32,10 @@ class LocalUpdate(object):
         self.args = args
         self.loss_func = nn.CrossEntropyLoss()
         self.selected_clients = []
-        self.ldr_train = DataLoader(DatasetSplit(dataset, idxs), batch_size=self.args.local_bs, shuffle=True)
+        batch_size = int(len(dataset)/self.args.num_users)
+        self.ldr_train = DataLoader(DatasetSplit(dataset, idxs), batch_size=batch_size, shuffle=True)
 
-    def train(self, net, world_size, rank, grc):
+    def train(self, net):
         net.train()
         # train and update
         optimizer = torch.optim.SGD(net.parameters(), lr=self.args.lr, momentum=self.args.momentum)
@@ -46,20 +47,15 @@ class LocalUpdate(object):
             loss = self.loss_func(log_probs, labels)
             batch_loss += loss
             loss.backward()
-            uncompressed = 0
-            compressed = 0
-            for index, (name, parameter) in enumerate(net.named_parameters()):
-                grad = parameter.grad.data
-                uncompressed += grad.element_size() * grad.nelement()
-                # grc.acc(grad)
-                new_tensor = grc.step(grad, name)
-                grad.copy_(new_tensor)
-            # if rank == 0:
-                # print(uncompressed)
-                # print(grc.size)
-            optimizer.step()
-            net.zero_grad()
-        return batch_loss/len(self.ldr_train)
+            return loss.item()
+            # for index, (name, parameter) in enumerate(net.named_parameters()):
+            #     grad = parameter.grad.data
+            #     # grc.acc(grad)
+            #     new_tensor = grc.step(grad, name)
+            #     grad.copy_(new_tensor)
+        #     optimizer.step()
+        #     net.zero_grad()
+        # return batch_loss/len(self.ldr_train)
 
     def inference(self, net, dataset_test, idxs):
         dataset = DatasetSplit(dataset_test, idxs)

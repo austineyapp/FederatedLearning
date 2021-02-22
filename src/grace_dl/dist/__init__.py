@@ -47,8 +47,6 @@ class Communicator(ABC):
         self.size = 0
 
     def step(self, tensor, name):
-        # uncompressed_size = tensor.element_size() * tensor.nelement()
-        # print("Uncompressed size: {:.1f}".format(uncompressed_size))
         tensor = self.memory.compensate(tensor, name)
         tensors_compressed, ctx = self.compressor.compress(tensor, name)
         self.memory.update(tensor, name, self.compressor, tensors_compressed, ctx)
