@@ -14,7 +14,8 @@ def args_parser():
     parser.add_argument('--local_bs', type=int, default=10, help="local batch size: B")
     parser.add_argument('--bs', type=int, default=128, help="test batch size")
     parser.add_argument('--lr', type=float, default=0.01, help="learning rate")
-    parser.add_argument('--momentum', type=float, default=0.5, help="SGD momentum (default: 0.5)")
+    parser.add_argument('--momentum', type=float, default=0.3, help="SGD momentum (default: 0.3)")
+    # parser.add_argument('--gradient_clipping', type=float, default=0.3, help="gradient clipping value")
     parser.add_argument('--split', type=str, default='user', help="train-test split type, user or sample")
 
     # model arguments
@@ -38,5 +39,6 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
     parser.add_argument('--all_clients', action='store_true', help='aggregation over all clients')
     parser.add_argument('--dgc', type=float, default="10", help="percent of dgc to be executed")
+    parser.add_argument('--compressor', type=str, default='topk', help="name of compressor")
     args = parser.parse_args()
     return args

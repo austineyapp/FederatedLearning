@@ -23,8 +23,12 @@ from models.test import test_img
 from dgc.dgc import DGC
 import sys
 from grace_dl.dist.communicator.allgather import Allgather
+from grace_dl.dist.communicator.allreduce import Allreduce
 from grace_dl.dist.compressor.topk import TopKCompressor
+from grace_dl.dist.compressor.dgc import DgcCompressor
 from grace_dl.dist.memory.residual import ResidualMemory
+from grace_dl.dist.memory.dgc import DgcMemory
+from grace_dl.dist.compressor.randomk import RandomKCompressor
 
 # parse args
 args = args_parser()
@@ -77,7 +81,7 @@ def init_processing(rank, size, fn, lost_train, acc_train, dataset_train, idxs_u
     backend : string, name of the backend for distributed operations
     """
     os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29500'
+    os.environ['MASTER_PORT'] = '29505'
     dist.init_process_group(backend=backend, rank=rank, world_size=size)
 
     fn(rank, size, loss_train, acc_train, dataset_train, idxs_users, net_glob, grc)
@@ -119,6 +123,7 @@ def run(rank, world_size, loss_train, acc_train, dataset_train, idxs_users, net_
             train_acc /= world_size
             loss_train[round] = epoch_loss[0]
             acc_train[round] = train_acc[0]
+            # if round % 50 == 0:
             print('Round {:3d}, Rank {:1d}, Average loss {:.6f}, Average Accuracy {:.2f}%'.format(round, dist.get_rank(), epoch_loss[0], train_acc[0]))
         round+=1
     if rank == 0:
@@ -152,6 +157,9 @@ def getsize(obj):
     return size
 
 if __name__ == '__main__':
+    import time
+    start_time = time.time()
+
     dataset_train, dataset_test, dict_users = partition_dataset()
     net_glob = build_model().to('cpu')
 
@@ -168,11 +176,13 @@ if __name__ == '__main__':
     acc_train = Array('f', args.epochs)
     # dgc_trainer = DGC(model=net_glob, rank=0, size=m, momentum=args.momentum, full_update_layers=[4], percentage=args.dgc)
     # torch.save(dgc_trainer.state_dict(), 'dgc_state_dict.pt')
-    grc = Allgather(TopKCompressor(args.dgc), ResidualMemory(), m)
+    if args.compressor == 'topk':
+        grc = Allgather(TopKCompressor(args.dgc), ResidualMemory(), m)
+    elif args.compressor == 'randomk':
+        grc = Allgather(RandomKCompressor(args.dgc), ResidualMemory(), m)
+    elif args.compressor == 'dgc':
+        grc = Allgather(DgcCompressor(args.dgc), DgcMemory(args.momentum, gradient_clipping=False, world_size=m), m)
 
-
-    # for iter in range(args.epochs):
-    #     idxs_users = np.random.choice(range(args.num_users), m, replace=False) #random set of m clients
     idxs_users = [] # size = (epochs * m)
     for _ in range(args.epochs):
         mRand = np.random.choice(range(args.num_users), m, replace=False) #random set of m clients
@@ -197,8 +207,8 @@ if __name__ == '__main__':
     print("Testing Accuracy: {:.2f}".format(acc_test))
 
     #Saving the objects train_loss and train_accuracy:
-    file_name = "/save/pickle/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl".\
-    format(args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs)
+    # file_name = "/save/pickle/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl".\
+    # format(args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs)
 
     #plot loss curve
     plt.figure()
@@ -206,11 +216,13 @@ if __name__ == '__main__':
     plt.plot(range(len(loss_train)), loss_train, color='r')
     plt.ylabel('Training loss')
     plt.xlabel('Communication Rounds')
-    plt.savefig('./save/fed_{}_{}_{}_C{}_iid{}_E{}_B{}_D{}_loss.png'.format(args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs, args.dgc))
+    plt.savefig('./save/fed_{}_{}_{}_{}_C{}_iid{}_E{}_B{}_D{}_loss.png'.format(args.compressor, args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs, args.dgc))
 
     plt.figure()
     plt.title('Average Accuracy vs Communication rounds')
     plt.plot(range(len(acc_train)), acc_train, color='k')
     plt.ylabel('Average Accuracy')
     plt.xlabel('Communication Rounds')
-    plt.savefig('./save/fed_{}_{}_{}_C{}_iid{}_E{}_B{}_D{}_acc.png'.format(args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs, args.dgc))
+    plt.savefig('./save/fed_{}_{}_{}_{}_C{}_iid{}_E{}_B{}_D{}_acc.png'.format(args.compressor, args.dataset, args.model, args.epochs, args.frac, args.iid, args.local_ep, args.local_bs, args.dgc))
+
+    print("--- %s seconds ---" % (time.time() - start_time))
